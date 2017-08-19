@@ -9,6 +9,7 @@
 #include <callgraph/detail/node_key.hpp>
 #include <callgraph/detail/opaque_node.hpp>
 
+#include <algorithm>
 #include <stdexcept>
 #include <unordered_map>
 #include <vector>
@@ -126,7 +127,8 @@ namespace callgraph {
          /// node represented by `g`. Future calls may use either `g` or
          /// the returned object to make connections to 'g'.
          template <size_t To, typename F, typename G>
-         node<typename detail::unwrap_opaque_node<G>::type> connect(F&& f, G&& g) {
+         node<typename detail::unwrap_opaque_node<G>::type>
+         connect(F&& f, G&& g) {
             using f_type = typename detail::unwrap_opaque_node<F>::type;
             using g_type = typename detail::unwrap_opaque_node<G>::type;
 
@@ -161,7 +163,8 @@ namespace callgraph {
          /// node represented by `g`. Future calls may use either `g` or
          /// the returned object to make connections to 'g'.
          template <size_t From, size_t To, typename F, typename G>
-         node<typename detail::unwrap_opaque_node<G>::type> connect(F&& f, G&& g) {
+         node<typename detail::unwrap_opaque_node<G>::type>
+         connect(F&& f, G&& g) {
             using f_type = typename detail::unwrap_opaque_node<F>::type;
             using g_type = typename detail::unwrap_opaque_node<G>::type;
 
@@ -189,8 +192,8 @@ namespace callgraph {
                                });
          }
 
-         /// \brief Get the depth of the graph, which hints at the number of worker
-         /// threads required.
+         /// \brief Get the depth of the graph, which hints at the
+         /// number of worker threads required.
          size_t depth() const {
             return root_node_.depth();
          }
@@ -206,15 +209,19 @@ namespace callgraph {
             return l;
          }
 
-         /// \brief Reduce the internal graph by performing a transitive reduction.
+         /// \brief Reduce the internal graph by performing a transitive
+         /// reduction.
          ///
-         /// This operation does not affect the callgraph invokation. It does however
-         /// potentially reduce the number of concurrent threads required.
+         /// This operation does not affect the callgraph invokation.
+         /// It does however potentially reduce the number of concurrent
+         /// threads required.
          void reduce()  {
             // For each pair of nodes, if there is a path
             // between them with a distance > 1, remove the
             // edge between them.
-            std::vector<std::pair<graph_node_type*, const graph_node_type*>> remove;
+            using pair_type =
+                std::pair<graph_node_type*, const graph_node_type*>;
+            std::vector<pair_type> remove;
             for (auto& kpair : nodes_) {
                graph_node_type& knode(kpair.second);
                for (const graph_node_type* jnode : knode.children_) {
