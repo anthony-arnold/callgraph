@@ -11,8 +11,18 @@
 CALLGRAPH_TEST(callgraph_separate_threads) {
    callgraph::graph pipe;
 
-   auto a = []() { return std::this_thread::get_id(); };
-   auto b = []() { return std::this_thread::get_id(); };
+   std::promise<void> p1;
+   std::promise<void> p2;
+   auto a = [&p1, &p2]() {
+       p2.set_value();
+       p1.get_future().wait();
+       return std::this_thread::get_id();
+   };
+   auto b = [&p1, &p2]() {
+       p2.get_future().wait();
+       p1.set_value();
+       return std::this_thread::get_id();
+   };
 
    auto an(pipe.connect(a));
    auto bn(pipe.connect(b));
