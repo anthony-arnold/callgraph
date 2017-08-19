@@ -400,10 +400,8 @@ namespace {
          }
    };
 
-}
-namespace std {
    template <size_t I>
-   int get(const vec3i& v) {
+   constexpr int get(const vec3i& v) {
       return vec3i_getter<I>::apply(v);
    }
 }
