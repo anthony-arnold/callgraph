@@ -23,12 +23,13 @@ CALLGRAPH_TEST(callgraph_std_less_logical_not) {
    source.emplace(1,7);
    source.emplace(4,5);
 
-   auto root(pipe.connect(
-                [&source]() {
-                   const auto p(source.front());
-                   source.pop();
-                   return p;
-                }));
+   auto sourcefn = [&source]() {
+       const auto p(source.front());
+       source.pop();
+       return p;
+   };
+
+   auto root(pipe.connect(sourcefn));
    std::less<int> compare;
    pipe.connect<0,0>(root, compare);
    pipe.connect<1,1>(root, compare);
@@ -37,7 +38,8 @@ CALLGRAPH_TEST(callgraph_std_less_logical_not) {
    pipe.connect<0>(compare, lnot);
 
    std::vector<bool> sink;
-   pipe.connect<0>(lnot, [&sink](bool b) { sink.push_back(b); });
+   auto sinkfn = [&sink](bool b) { sink.push_back(b); };
+   pipe.connect<0>(lnot, sinkfn);
 
    pipe.reduce();
    callgraph::graph_runner runner(pipe);
