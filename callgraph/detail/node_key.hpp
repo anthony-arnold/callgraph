@@ -27,16 +27,25 @@ namespace callgraph {
             }
       };
 
+      template <typename R, typename... Args>
+      struct to_node_key_impl<R (Args...)>
+      {
+            template <typename T>
+            static node_key apply(T&& t) {
+                return &t;
+            }
+      };
+
       template <typename T>
       struct to_node_key_impl<opaque_node<T> > {
             static node_key apply(opaque_node<T>& node) {
-               return to_node_key<T>::apply(node.impl_);
+               return to_node_key_impl<T>::apply(node.impl_);
             }
       };
 
       template <typename T>
       struct to_node_key :
-            to_node_key_impl<typename std::remove_reference<T>::type>
+            to_node_key_impl<typename std::decay<T>::type>
       {
       };
    }
