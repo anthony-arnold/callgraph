@@ -6,7 +6,7 @@
 
 #include <callgraph/detail/invoke_once.hpp>
 #include <callgraph/detail/node.hpp>
-#include <callgraph/detail/opaque_node.hpp>
+#include <callgraph/vertex.hpp>
 
 #include <functional>
 #include <stack>
@@ -155,10 +155,10 @@ namespace callgraph {
         };
 
         template <typename T, typename U>
-        struct make_graph_node_impl<T, opaque_node<U> >
+        struct make_graph_node_impl<T, vertex<U> >
         {
-            static graph_node apply(const opaque_node<U>& n) {
-                return graph_node(static_cast<U>(n.impl_));
+            static graph_node apply(const vertex<U>& n) {
+                return graph_node(static_cast<U>(n.impl()));
             }
         };
 

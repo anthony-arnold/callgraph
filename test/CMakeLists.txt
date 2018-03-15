@@ -28,7 +28,8 @@ set(CALLGRAPH_TESTS_SOURCES
   callgraph_validity_test.cpp
   callgraph_run_test.cpp
   callgraph_functional_test.cpp
-  callgraph_thread_test.cpp)
+  callgraph_thread_test.cpp
+  callgraph_shift_connect_test.cpp)
 
 set(TEST_MAIN ${CMAKE_CURRENT_SOURCE_DIR}/main.cpp)
 

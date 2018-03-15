@@ -4,7 +4,7 @@
 #ifndef CALLGRAPH_DETAIL_NODE_KEY_HPP
 #define CALLGRAPH_DETAIL_NODE_KEY_HPP
 
-#include <callgraph/detail/opaque_node.hpp>
+#include <callgraph/vertex.hpp>
 
 #ifndef NO_DOC
 namespace callgraph {
@@ -37,9 +37,9 @@ namespace callgraph {
         };
 
         template <typename T>
-        struct to_node_key_impl<opaque_node<T> > {
-            static node_key apply(opaque_node<T>& node) {
-                return to_node_key_impl<T>::apply(node.impl_);
+        struct to_node_key_impl<vertex<T> > {
+            static node_key apply(vertex<T>& node) {
+                return to_node_key_impl<T>::apply(node.impl());
             }
         };
 

@@ -81,7 +81,8 @@ namespace callgraph { namespace detail {
 
         template <typename T>
         struct node
-            : node_base<typename node_traits<typename std::decay<T>::type>::signature> {
+            : node_base<typename node_traits<
+                            typename std::decay<T>::type>::signature> {
         public:
             using type = typename std::decay<T>::type;
             using traits_type = node_traits<type>;

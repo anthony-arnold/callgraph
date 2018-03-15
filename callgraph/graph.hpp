@@ -7,7 +7,8 @@
 #include <callgraph/detail/graph_node.hpp>
 #include <callgraph/detail/node.hpp>
 #include <callgraph/detail/node_key.hpp>
-#include <callgraph/detail/opaque_node.hpp>
+#include <callgraph/vertex.hpp>
+#include <callgraph/detail/unwrap_vertex.hpp>
 
 #include <algorithm>
 #include <stdexcept>
@@ -19,8 +20,7 @@ namespace callgraph {
     class graph_runner;
 
 /// \brief An error thrown if connecting a node would cause a cycle.
-    class cycle_error : public std::runtime_error
-    {
+    class cycle_error : public std::runtime_error {
     public:
         cycle_error()
             : runtime_error("Connecting f->g forms a cycle.")
@@ -30,24 +30,13 @@ namespace callgraph {
 
 /// \brief An error thrown if the source node in a connection
 /// request is not found.
-    class source_node_not_found : public std::runtime_error
-    {
+    class source_node_not_found : public std::runtime_error {
     public:
         source_node_not_found()
             : runtime_error("Source node not found in graph.")
             {
             }
     };
-
-    /// \brief An opaque type which is returned from the connection
-    /// functions of the \ref graph type.
-    ///
-    /// Nodes can be used as placeholders for future connections to
-    /// avoid having to share the actual function objects used to
-    /// form graph nodes. Instead, the node may be shared with
-    /// users of the graph who may connect their own objects.
-    template <typename T>
-    using node = detail::opaque_node<T>;
 
 /// \brief A graph is a container of asynchronous executable nodes
 /// joined into a directed acyclic graph.
@@ -80,7 +69,7 @@ namespace callgraph {
         /// node represented by `t`. Future calls may use either `t` or
         /// the returned object to make connections to 't'.
         template <typename T>
-        node<typename detail::unwrap_opaque_node<T>::type> connect(T&& t) {
+        constexpr auto connect(T&& t) -> decltype(auto) {
             return connect(std::forward<void(*)()>(root_), std::forward<T>(t));
         }
 
@@ -96,9 +85,9 @@ namespace callgraph {
         /// node represented by `g`. Future calls may use either `g` or
         /// the returned object to make connections to 'g'.
         template <typename F, typename G>
-        node<typename detail::unwrap_opaque_node<G>::type> connect(F&& f, G&& g) {
-            using f_type = typename detail::unwrap_opaque_node<F>::type;
-            using g_type = typename detail::unwrap_opaque_node<G>::type;
+        constexpr auto connect(F&& f, G&& g) -> decltype(auto) {
+            using f_type = typename detail::unwrap_vertex<F>::type;
+            using g_type = typename detail::unwrap_vertex<G>::type;
 
             auto fnode = get_node(std::forward<F>(f));
             if (fnode == nodes_.end()) {
@@ -109,7 +98,7 @@ namespace callgraph {
             auto gnode = ensure_node(std::forward<G>(g));
             to_node<g_type>(gnode)->connect(*to_node<f_type>(fnode));
             fnode->second.add_child(&gnode->second);
-            return node<g_type>(g);
+            return vertex<g_type>(detail::unwrap_vertex<G>::apply(g), *this);
         }
 
         /// \brief Connect functions `f` and `g`.
@@ -127,10 +116,9 @@ namespace callgraph {
         /// node represented by `g`. Future calls may use either `g` or
         /// the returned object to make connections to 'g'.
         template <size_t To, typename F, typename G>
-        node<typename detail::unwrap_opaque_node<G>::type>
-        connect(F&& f, G&& g) {
-            using f_type = typename detail::unwrap_opaque_node<F>::type;
-            using g_type = typename detail::unwrap_opaque_node<G>::type;
+        constexpr auto connect(F&& f, G&& g) -> decltype(auto) {
+            using f_type = typename detail::unwrap_vertex<F>::type;
+            using g_type = typename detail::unwrap_vertex<G>::type;
 
             auto fnode = get_node(std::forward<F>(f));
             if (fnode == nodes_.end()) {
@@ -141,7 +129,7 @@ namespace callgraph {
             auto gnode = ensure_node(std::forward<G>(g));
             to_node<g_type>(gnode)->connect<To>(*to_node<f_type>(fnode));
             fnode->second.add_child(&gnode->second);
-            return node<g_type>(g);
+            return vertex<g_type>(detail::unwrap_vertex<G>::apply(g), *this);
         }
 
         /// \brief Connect functions `f` and `g`.
@@ -163,10 +151,9 @@ namespace callgraph {
         /// node represented by `g`. Future calls may use either `g` or
         /// the returned object to make connections to 'g'.
         template <size_t From, size_t To, typename F, typename G>
-        node<typename detail::unwrap_opaque_node<G>::type>
-        connect(F&& f, G&& g) {
-            using f_type = typename detail::unwrap_opaque_node<F>::type;
-            using g_type = typename detail::unwrap_opaque_node<G>::type;
+        constexpr auto connect(F&& f, G&& g) -> decltype(auto) {
+            using f_type = typename detail::unwrap_vertex<F>::type;
+            using g_type = typename detail::unwrap_vertex<G>::type;
 
             auto fnode = get_node(std::forward<F>(f));
             if (fnode == nodes_.end()) {
@@ -177,7 +164,7 @@ namespace callgraph {
             auto gnode = ensure_node(std::forward<G>(g));
             to_node<g_type>(gnode)->connect<From, To>(*to_node<f_type>(fnode));
             fnode->second.add_child(&gnode->second);
-            return node<g_type>(g);
+            return vertex<g_type>(detail::unwrap_vertex<G>::apply(g), *this);
         }
 
         /// \brief Check that each node in the graph with a non-empty
@@ -246,7 +233,7 @@ namespace callgraph {
         using map_type = std::unordered_map<fn_key, graph_node_type>;
 
         template <typename T, typename It>
-        static node_type<T>* to_node(It it) {
+        static constexpr node_type<T>* to_node(It it) {
             return it->second.to_node<T>();
         }
 
@@ -295,6 +282,35 @@ namespace callgraph {
         graph_node_type& root_node_;
     };
 
+    /// \brief Connect function object `t` to the root node of graph `g`.
+    /// \tparam T A Callable type which takes no parameters, or a
+    /// node wrapper which wraps such a type.
+    /// \return A node wrapper which can be used as a handle to the
+    /// node represented by `t`. Future calls may use either `t` or
+    /// the returned object to make connections to 't'.
+    template <typename T>
+    constexpr auto operator>>(graph& g, T&& t) -> decltype(auto) {
+        return g.connect(t);
+    }
+}
+
+#include <callgraph/detail/connect_vertex.hpp>
+
+namespace callgraph {
+    /// \brief Connect node `t` to function object `u`
+    /// such that `t` becomes a dependency of `u`.
+    /// \tparam T A Callable type.
+    /// \tparam U A Callable type which takes zero or one parameters
+    /// which corresponds to the return type of `T`.
+    /// \return A node wrapper which can be used as a handle to the
+    /// node represented by `u`. Future calls may use either `u` or
+    /// the returned object to make connections to `u`. This operator
+    /// may be chained in such a way.
+    template <typename T, typename U>
+    constexpr auto operator>>(vertex<T> t, U&& u) -> decltype(auto) {
+        return detail::connect_vertex(
+            std::forward<vertex<T>>(t), std::forward<U>(u));
+    }
 }
 
 #endif // CALLGRAPH_GRAPH_HPP

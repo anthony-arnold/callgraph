@@ -6,7 +6,8 @@
 
 #ifndef NO_DOC
 
-namespace callgraph { namespace detail {
+namespace callgraph {
+    namespace detail {
 
         template <typename R, typename... Args>
         struct node_traits_base {
