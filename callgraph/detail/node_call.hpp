@@ -10,81 +10,81 @@
 
 #ifndef NO_DOC
 namespace callgraph {
-   namespace detail {
+    namespace detail {
 
-      template <size_t...>
-      struct node_call_sequence {};
+        template <size_t...>
+        struct node_call_sequence {};
 
-      template <size_t M, size_t... N>
-      struct generate_node_call_sequence
-         : generate_node_call_sequence<M - 1, M - 1, N...>
-      {
-      };
+        template <size_t M, size_t... N>
+        struct generate_node_call_sequence
+            : generate_node_call_sequence<M - 1, M - 1, N...>
+        {
+        };
 
-      template <size_t... N>
-      struct generate_node_call_sequence<0, N...>
-      {
+        template <size_t... N>
+        struct generate_node_call_sequence<0, N...>
+        {
             using type = node_call_sequence<N...>;
-      };
+        };
 
-      template <typename T>
-      struct node_call;
+        template <typename T>
+        struct node_call;
 
-      template <typename R, typename... Args>
-      struct node_call<R(Args...)> {
+        template <typename R, typename... Args>
+        struct node_call<R(Args...)> {
             template <typename T, typename U, typename V>
             static void apply(T& t, U& params, V& result) {
-               using sequence_type =
-                  typename generate_node_call_sequence<node_traits<T>::arity>::type;
-               result.set(apply(t, params, sequence_type()));
+                using sequence_type =
+                    typename generate_node_call_sequence<node_traits<T>::arity>::type;
+                result.set(apply(t, params, sequence_type()));
             }
 
             template <typename T, typename U, size_t... N>
             static R apply(T& t, U& params, node_call_sequence<N...>) {
-               return t(get_node_params<N>(params)...);
+                return t(get_node_params<N>(params)...);
             }
-      };
+        };
 
-      template <typename... Args>
-      struct node_call<void(Args...)> {
+        template <typename... Args>
+        struct node_call<void(Args...)> {
             template <typename T, typename U, typename V>
             static void apply(T& t, U& params, V& result) {
-               using sequence_type =
-                  typename generate_node_call_sequence<node_traits<T>::arity>::type;
-               apply(t, params, sequence_type());
-               result.set();
+                using sequence_type =
+                    typename generate_node_call_sequence<node_traits<T>::arity>::type;
+                apply(t, params, sequence_type());
+                result.set();
             }
 
             template <typename T, typename U, size_t... N>
             static void apply(T& t, U& params, node_call_sequence<N...>) {
-               t(get_node_params<N>(params)...);
+                t(get_node_params<N>(params)...);
             }
-      };
+        };
 
-      template <typename R>
-      struct node_call<R()> {
+        template <typename R>
+        struct node_call<R()> {
             template <typename T, typename U, typename V>
             static void apply(T& t, U& future, V& result) {
-               if (future) {
-                  future->wait();
-               }
-               result.set(t());
+                if (future) {
+                    future->wait();
+                }
+                result.set(t());
             }
-      };
+        };
 
-      template <>
-      struct node_call<void()> {
+        template <>
+        struct node_call<void()> {
             template <typename T, typename U, typename V>
             static void apply(T& t, U& future, V& result) {
-               if (future) {
-                  future->wait();
-               }
-               t();
-               result.set();
+                if (future) {
+                    future->wait();
+                }
+                t();
+                result.set();
             }
-      };
+        };
 
-   }
+    }
 }
 
 #endif // NO_DOC

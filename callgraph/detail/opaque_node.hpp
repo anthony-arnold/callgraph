@@ -6,36 +6,36 @@
 
 #ifndef NO_DOC
 namespace callgraph {
-   namespace detail {
+    namespace detail {
 
-      template <typename T>
-      struct opaque_node {
+        template <typename T>
+        struct opaque_node {
             opaque_node(T& impl)
-               : impl_(impl)
-            {
-            }
+                : impl_(impl)
+                {
+                }
 
             T& impl_;
-      };
+        };
 
-      template <typename T, typename>
-      struct unwrap_opaque_node_impl
-      {
+        template <typename T, typename>
+        struct unwrap_opaque_node_impl
+        {
             using type = T;
-      };
+        };
 
-      template <typename T, typename U>
-      struct unwrap_opaque_node_impl<T, opaque_node<U> >
-      {
+        template <typename T, typename U>
+        struct unwrap_opaque_node_impl<T, opaque_node<U> >
+        {
             using type = U;
-      };
+        };
 
-      template <typename T>
-      struct unwrap_opaque_node
-         : unwrap_opaque_node_impl<T, typename std::decay<T>::type>
-      {
-      };
-   }
+        template <typename T>
+        struct unwrap_opaque_node
+            : unwrap_opaque_node_impl<T, typename std::decay<T>::type>
+        {
+        };
+    }
 }
 #endif // NO_DOC
 #endif // CALLGRAPH_DETAIL_OPAQUE_NODE_HPP
