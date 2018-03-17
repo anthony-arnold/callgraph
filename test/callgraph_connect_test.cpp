@@ -566,3 +566,25 @@ CALLGRAPH_TEST(callgraph_connect_node_ref_function_pointer) {
     future.wait_for(std::chrono::seconds(1));
     CALLGRAPH_EQUAL(val, expect);
 }
+
+CALLGRAPH_TEST(callgraph_connect_std_functor) {
+    static const int expect = 88888;
+    int val = 0;
+
+    auto p1 = []() { return 22222; };
+    auto p2 = []() { return 4; };
+    auto end = [&val](int i) { val = i; };
+    auto mul = std::multiplies<int>();
+
+    callgraph::graph pipe;
+    pipe.connect(p1);
+    pipe.connect(p2);
+    pipe.connect<0>(p1, mul);
+    pipe.connect<1>(p2, mul);
+    pipe.connect<0>(mul, end);
+
+    callgraph::graph_runner runner(pipe);
+    auto future = runner();
+    future.wait_for(std::chrono::seconds(1));
+    CALLGRAPH_EQUAL(val, expect);
+}

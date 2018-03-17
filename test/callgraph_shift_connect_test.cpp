@@ -434,3 +434,23 @@ CALLGRAPH_TEST(callgraph_shift_connect_tuple_explode2) {
     future.wait_for(std::chrono::seconds(1));
     CALLGRAPH_EQUAL(val, expect);
 }
+
+CALLGRAPH_TEST(callgraph_shift_connect_std_functor) {
+    using callgraph::to;
+    static const int expect = 88888;
+    int val = 0;
+
+    auto p1 = []() { return 22222; };
+    auto p2 = []() { return 4; };
+    auto end = [&val](int i) { val = i; };
+    auto mul = std::multiplies<int>();
+
+    callgraph::graph pipe;
+    pipe >> p1 >> mul;
+    pipe >> p2 >> to<1>(mul) >> end;
+
+    callgraph::graph_runner runner(pipe);
+    auto future = runner();
+    future.wait_for(std::chrono::seconds(1));
+    CALLGRAPH_EQUAL(val, expect);
+}
