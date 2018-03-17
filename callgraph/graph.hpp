@@ -281,36 +281,6 @@ namespace callgraph {
         void (*root_)();
         graph_node_type& root_node_;
     };
-
-    /// \brief Connect function object `t` to the root node of graph `g`.
-    /// \tparam T A Callable type which takes no parameters, or a
-    /// node wrapper which wraps such a type.
-    /// \return A node wrapper which can be used as a handle to the
-    /// node represented by `t`. Future calls may use either `t` or
-    /// the returned object to make connections to 't'.
-    template <typename T>
-    constexpr auto operator>>(graph& g, T&& t) -> decltype(auto) {
-        return g.connect(t);
-    }
-}
-
-#include <callgraph/detail/connect_vertex.hpp>
-
-namespace callgraph {
-    /// \brief Connect node `t` to function object `u`
-    /// such that `t` becomes a dependency of `u`.
-    /// \tparam T A Callable type.
-    /// \tparam U A Callable type which takes zero or one parameters
-    /// which corresponds to the return type of `T`.
-    /// \return A node wrapper which can be used as a handle to the
-    /// node represented by `u`. Future calls may use either `u` or
-    /// the returned object to make connections to `u`. This operator
-    /// may be chained in such a way.
-    template <typename T, typename U>
-    constexpr auto operator>>(vertex<T> t, U&& u) -> decltype(auto) {
-        return detail::connect_vertex(
-            std::forward<vertex<T>>(t), std::forward<U>(u));
-    }
 }
 
 #endif // CALLGRAPH_GRAPH_HPP

@@ -7,7 +7,7 @@
 namespace callgraph {
     class graph;
 
-    /// A vertex wraps a callable already present in a graph.
+    /// \brief A vertex wraps a callable already present in a graph.
     /// It is useful because it can be supplied by an interface
     /// without having to supply a declaration of the callable it
     /// wraps. It can then be passed to the same graph to forge
@@ -16,15 +16,24 @@ namespace callgraph {
     /// This type is returned from calls to graph::connect.
     template <typename T>
     struct vertex {
+        /// \brief Construct a new vertex.
+        /// \param impl The function the vertex wraps.
+        /// \param g The graph the function is connected to.
         constexpr vertex(T& impl, graph& g)
             : impl_(impl), g_(g)
             {
             }
 
+        /// \brief Copy-construct a vertex.
         constexpr vertex(const vertex<T>&) = default;
+
+        /// \brief Copy-assign a vertex.
         constexpr vertex<T>& operator=(const vertex<T>&) = default;
 
+        /// \brief Move-construct a vertex.
         constexpr vertex(vertex<T>&&) = default;
+
+        /// \brief Move-assign a vertex.
         constexpr vertex<T>& operator=(vertex<T>&&) = default;
 
 

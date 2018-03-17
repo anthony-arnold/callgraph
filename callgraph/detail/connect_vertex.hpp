@@ -15,7 +15,7 @@ namespace callgraph {
 
         template <typename T, typename U, typename>
         struct connect_vertex_t {
-            static constexpr auto apply(vertex<T>&& t, U&& u) -> decltype(auto) {
+            static constexpr auto apply(vertex<T> t, U&& u) -> decltype(auto) {
                 constexpr auto c = &graph::connect<0, vertex<T>, U>;
                 return (t.owner().*c)(std::forward<vertex<T>>(t),
                                     std::forward<U>(u));
@@ -23,18 +23,48 @@ namespace callgraph {
         };
         template <typename T, typename U>
         struct connect_vertex_t<T, U, void> {
-            static constexpr auto apply(vertex<T>&& t, U&& u) -> decltype(auto) {
+            static constexpr auto apply(vertex<T> t, U&& u) -> decltype(auto) {
                 constexpr auto c = &graph::connect<vertex<T>, U>;
                 return (t.owner().*c)(std::forward<vertex<T>>(t),
                                     std::forward<U>(u));
             }
         };
 
+        template <size_t To, typename T, typename U>
+        struct connect_vertex_to_t {
+            static constexpr auto apply(vertex<T> t, U&& u) -> decltype(auto) {
+                constexpr auto c = &graph::connect<To, vertex<T>, U>;
+                return (t.owner().*c)(std::forward<vertex<T>>(t),
+                                    std::forward<U>(u));
+            }
+        };
+
+        template <size_t From, size_t To, typename T, typename U>
+        struct connect_vertex_from_to_t {
+            static constexpr auto apply(vertex<T> t, U&& u) -> decltype(auto) {
+                constexpr auto c = &graph::connect<From, To, vertex<T>, U>;
+                return (t.owner().*c)(std::forward<vertex<T>>(t),
+                                    std::forward<U>(u));
+            }
+        };
+
         template <typename T, typename U>
-        constexpr auto connect_vertex(vertex<T>&& t, U&& u) -> decltype(auto) {
+        constexpr auto connect_vertex(vertex<T> t, U&& u) -> decltype(auto) {
             using t_type = typename std::decay<T>::type;
             using r_type = typename node_traits<t_type>::result_type;
             return connect_vertex_t<T, U, r_type>::apply(
+                std::forward<vertex<T>>(t), std::forward<U>(u));
+        }
+
+        template <size_t To, typename T, typename U>
+        constexpr auto connect_vertex(vertex<T> t, U&& u) -> decltype(auto) {
+            return connect_vertex_to_t<To, T, U>::apply(
+                std::forward<vertex<T>>(t), std::forward<U>(u));
+        }
+
+        template <size_t From, size_t To, typename T, typename U>
+        constexpr auto connect_vertex(vertex<T> t, U&& u) -> decltype(auto) {
+            return connect_vertex_from_to_t<From, To, T, U>::apply(
                 std::forward<vertex<T>>(t), std::forward<U>(u));
         }
     }

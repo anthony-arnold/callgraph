@@ -5,6 +5,9 @@
 #include "test.hpp"
 #include <callgraph/graph.hpp>
 #include <callgraph/graph_runner.hpp>
+#include <callgraph/operators.hpp>
+#include <callgraph/from.hpp>
+#include <callgraph/to.hpp>
 #include <array>
 #include <chrono>
 #include <functional>
@@ -348,6 +351,83 @@ CALLGRAPH_TEST(callgraph_shift_connect_node_ref_function_pointer) {
     n >> c;
     pipe >> b;
     pipe.connect<1>(b, n);
+
+    callgraph::graph_runner runner(pipe);
+    auto future = runner();
+    future.wait_for(std::chrono::seconds(1));
+    CALLGRAPH_EQUAL(val, expect);
+}
+
+CALLGRAPH_TEST(callgraph_shift_connect_inline_lambda) {
+    static const int expect(0xdeadbeef);
+
+    int val(0);
+    callgraph::graph pipe;
+
+    pipe >> []() { return 0xdeadbeef; } >> [&val](int i) { val = i; };
+
+    callgraph::graph_runner runner(pipe);
+    auto future = runner();
+    future.wait_for(std::chrono::seconds(1));
+    CALLGRAPH_EQUAL(val, expect);
+}
+
+CALLGRAPH_TEST(callgraph_shift_connect_two_to_one) {
+    using callgraph::to;
+
+    callgraph::graph pipe;
+    static const int expect(0xdeadbeef + 0xbadf00d);
+
+    int val(0);
+    auto a = [] { return 0xdeadbeef; };
+    auto b = [] { return 0x0badf00d; };
+    auto c = [&val] (int i, int j) { val = i + j; };
+
+    pipe >> a >> c;
+    pipe >> b >> to<1>(c);
+
+    callgraph::graph_runner runner(pipe);
+    auto future = runner();
+    future.wait_for(std::chrono::seconds(1));
+    CALLGRAPH_EQUAL(val, expect);
+}
+
+CALLGRAPH_TEST(callgraph_shift_connect_tuple_explode) {
+    using callgraph::from;
+
+    callgraph::graph pipe;
+    static const int expect(0xdeadbeef + 0xbadf00d);
+
+    int val(0);
+    auto a = [] { return std::make_tuple(0xdeadbeef, 0xbadf00d); };
+    auto b = [&val](int i, int j) { val = i + j; };
+
+    pipe >> a >> from<0>::to<0>(b);
+    pipe >> a >> from<1>::to<1>(b);
+
+    callgraph::graph_runner runner(pipe);
+    auto future = runner();
+    future.wait_for(std::chrono::seconds(1));
+    CALLGRAPH_EQUAL(val, expect);
+}
+
+CALLGRAPH_TEST(callgraph_shift_connect_tuple_explode2) {
+    using callgraph::from;
+    using callgraph::to;
+
+    callgraph::graph pipe;
+    static const float A(0.5f);
+    static const double PI(3.14);
+    static const double L(3e6);
+    static const double expect(A * L * PI);
+
+    double val(0);
+    auto a = [] { return std::make_tuple(A, PI); };
+    auto b = [] (float f) { return static_cast<double>(f*L); };
+    auto c = [&val] (double x, double y) { val = x * y; };
+
+    pipe >> a >> from<1>::to<0>(c);
+    pipe >> a >> from<0>::to<0>(b) >> to<1>(c);
 
     callgraph::graph_runner runner(pipe);
     auto future = runner();
