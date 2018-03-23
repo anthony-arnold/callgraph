@@ -11,10 +11,11 @@ namespace callgraph {
     namespace detail {
         using node_key = void*;
 
-        template <typename T>
+        template <typename>
         struct to_node_key_impl
         {
-            static node_key apply(T& t) {
+            template <typename T>
+            static node_key apply(T&& t) {
                 return &t;
             }
         };
@@ -38,7 +39,8 @@ namespace callgraph {
 
         template <typename T>
         struct to_node_key_impl<vertex<T> > {
-            static node_key apply(vertex<T>& node) {
+            template <typename V>
+            static node_key apply(V&& node) {
                 return to_node_key_impl<T>::apply(node.impl());
             }
         };

@@ -41,10 +41,10 @@ CALLGRAPH_TEST(callgraph_connect_void_void) {
 
 CALLGRAPH_TEST(callgraph_connect_int_int) {
     callgraph::graph pipe;
-    static const int expect(0xdeadbeef);
+    static const int expect(123);
 
     int val(0);
-    auto a = [] ()->int { return 0xdeadbeef; };
+    auto a = [] ()->int { return 123; };
     auto b = [&val](int v) { val = v; };
 
     pipe.connect(a);
@@ -58,10 +58,10 @@ CALLGRAPH_TEST(callgraph_connect_int_int) {
 
 CALLGRAPH_TEST(callgraph_connect_ulong_int) {
     callgraph::graph pipe;
-    static const int expect(0xdeadbeef);
+    static const int expect(123);
 
     int val(0);
-    auto a = [] ()-> unsigned long { return 0xdeadbeef; };
+    auto a = [] ()-> unsigned long { return 123UL; };
     auto b = [&val](int v) { val = v; };
 
     pipe.connect(a);
@@ -75,10 +75,10 @@ CALLGRAPH_TEST(callgraph_connect_ulong_int) {
 
 CALLGRAPH_TEST(callgraph_connect_pointer) {
     callgraph::graph pipe;
-    static const int expect(0xdeadbeef);
+    static const int expect(123);
 
     int val1(0), val2(0);
-    auto a = [] { return 0xdeadbeef; };
+    auto a = [] { return 123; };
     auto b = [&val1] (int i) { val1 = i; return &val1; };
     auto c = [&val2] (int* p) { val2 = *p; };
 
@@ -94,11 +94,11 @@ CALLGRAPH_TEST(callgraph_connect_pointer) {
 
 CALLGRAPH_TEST(callgraph_connect_two_to_one) {
     callgraph::graph pipe;
-    static const int expect(0xdeadbeef + 0xbadf00d);
+    static const int expect(123 + 456);
 
     int val(0);
-    auto a = [] { return 0xdeadbeef; };
-    auto b = [] { return 0x0badf00d; };
+    auto a = [] { return 123; };
+    auto b = [] { return 456; };
     auto c = [&val] (int i, int j) { val = i + j; };
 
     pipe.connect(a);
@@ -114,10 +114,10 @@ CALLGRAPH_TEST(callgraph_connect_two_to_one) {
 
 CALLGRAPH_TEST(callgraph_connect_tuple_explode) {
     callgraph::graph pipe;
-    static const int expect(0xdeadbeef + 0xbadf00d);
+    static const int expect(123 + 456);
 
     int val(0);
-    auto a = [] { return std::make_tuple(0xdeadbeef, 0xbadf00d); };
+    auto a = [] { return std::make_tuple(123, 456); };
     auto b = [&val](int i, int j) { val = i + j; };
 
     pipe.connect(a);
@@ -159,10 +159,10 @@ CALLGRAPH_TEST(callgraph_connect_functor) {
             return a + 1;
         }
     };
-    static const int expect(0xdeadbeef + 1);
+    static const int expect(123 + 1);
 
     int val(0);
-    auto a = [] { return 0xdeadbeef; };
+    auto a = [] { return 123; };
     auto b = [&val] (int i) { val = i; };
     functor f;
 
@@ -179,7 +179,7 @@ CALLGRAPH_TEST(callgraph_connect_functor) {
 
 CALLGRAPH_TEST(callgraph_connect_member_fn) {
     using namespace std::placeholders;
-    static const int expect(0xdeadbeef + 0xbadf00d);
+    static const int expect(123 + 456);
 
     struct functor {
         void run(int i, int j) {
@@ -189,8 +189,8 @@ CALLGRAPH_TEST(callgraph_connect_member_fn) {
         int val;
     };
 
-    auto a = [] { return 0xdeadbeef; };
-    auto b = [] { return 0xbadf00d; };
+    auto a = [] { return 123; };
+    auto b = [] { return 456; };
     functor f;
     std::function<void(int,int)> func(std::bind(&functor::run, &f, _1, _2));
 
@@ -212,11 +212,11 @@ CALLGRAPH_TEST(callgraph_connect_static_fn) {
             return i + j;
         };
     };
-    static const int expect(0xdeadbeef + 0xbadf00d);
+    static const int expect(123 + 456);
 
     int val(0);
-    auto a = [] { return 0xdeadbeef; };
-    auto b = [] { return 0xbadf00d; };
+    auto a = [] { return 123; };
+    auto b = [] { return 456; };
     auto c = [&val] (int k) { val = k; };
 
     callgraph::graph pipe;
@@ -238,9 +238,9 @@ static void callgraph_connect_free_function(int in, int& out) {
 
 CALLGRAPH_TEST(callgraph_connect_free_function) {
     int val(0);
-    static const int expect(0xdeadbeef);
+    static const int expect(123);
 
-    auto a = [] { return 0xdeadbeef; };
+    auto a = [] { return 123; };
     auto b = [&val] () -> int& { return val; };
 
     callgraph::graph pipe;
@@ -455,7 +455,7 @@ CALLGRAPH_TEST(callgraph_connect_unknown) {
 
 CALLGRAPH_TEST(callgraph_connect_unknown_params) {
     auto a = [] { return 0; };
-    auto b = [] (int i) {};
+    auto b = [] (int) {};
 
     callgraph::graph pipe;
     CALLGRAPH_THROWS(pipe.connect<0>(a, b));
@@ -475,7 +475,7 @@ CALLGRAPH_TEST(callgraph_connect_long_cycle) {
     auto a = [] { return 0; };
     auto b = [] { return 1; };
     auto c = [] (int i, int j) { return i + j; };
-    auto d = [] (int k) {};
+    auto d = [] (int) {};
 
     callgraph::graph pipe;
     pipe.connect(a);
@@ -506,10 +506,10 @@ CALLGRAPH_TEST(callgraph_connect_node_ref) {
 
 CALLGRAPH_TEST(callgraph_connect_node_ref_param) {
     callgraph::graph pipe;
-    static const int expect(0xdeadbeef);
+    static const int expect(123);
 
     int val(0);
-    auto a = [] ()->int { return 0xdeadbeef; };
+    auto a = [] ()->int { return 123; };
     auto b = [&val](int v) { val = v; };
 
     auto n(pipe.connect(a));
@@ -547,17 +547,17 @@ CALLGRAPH_TEST(callgraph_connect_node_ref_function_pointer) {
             return i + j;
         };
     };
-    static const int expect(0xdeadbeef + 0xbadf00d);
+    static const int expect(123 + 456);
 
     int val(0);
-    auto a = [] { return 0xdeadbeef; };
-    auto b = [] { return 0xbadf00d; };
+    auto a = [] { return 123; };
+    auto b = [] { return 456; };
     auto c = [&val] (int k) { val = k; };
 
     callgraph::graph pipe;
     pipe.connect(a);
     pipe.connect(b);
-    auto n(pipe.connect<0>(a, &functor::run));
+    const auto n(pipe.connect<0>(a, &functor::run));
     pipe.connect<1>(b, n);
     pipe.connect<0>(n, c);
 

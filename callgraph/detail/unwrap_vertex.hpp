@@ -15,8 +15,9 @@ namespace callgraph {
         struct unwrap_vertex_impl {
             using type = T;
 
-            static constexpr type& apply(T& t) {
-                return t;
+            template <typename U>
+            static constexpr auto apply(U&& u) -> decltype(auto) {
+                return std::forward<U>(u);
             }
         };
 
@@ -24,8 +25,9 @@ namespace callgraph {
         struct unwrap_vertex_impl<T, vertex<U> > {
             using type = U;
 
-            static constexpr type& apply(T& t) {
-                return t.impl();
+            template <typename V>
+            static constexpr auto apply(V&& v) -> decltype(auto) {
+                return v.impl();
             }
         };
 

@@ -30,7 +30,7 @@ CALLGRAPH_TEST(callgraph_multiple_params_is_valid) {
     auto c = [] { return 3; };
     auto d = [] { return 4; };
 
-    auto e = [] (int w, int x, int y, int z) {};
+    auto e = [] (int, int, int, int) {};
 
     pipe.connect(a);
     pipe.connect(b);

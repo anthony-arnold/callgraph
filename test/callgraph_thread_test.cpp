@@ -34,7 +34,7 @@ CALLGRAPH_TEST(callgraph_separate_threads) {
    std::logical_not<bool> lnot;
    pipe.connect<0>(compare, lnot);
 
-   auto check = [](bool b) { assert(b); };
+   auto check = [](bool t) { assert(t); };
    pipe.connect<0>(lnot, check);
 
    callgraph::graph_runner runner(pipe);

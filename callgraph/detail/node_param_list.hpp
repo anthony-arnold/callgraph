@@ -4,6 +4,7 @@
 #ifndef CALLGRAPH_DETAIL_NODE_PARAM_LIST_HPP
 #define CALLGRAPH_DETAIL_NODE_PARAM_LIST_HPP
 
+#include <callgraph/error.hpp>
 #include <callgraph/detail/node_value.hpp>
 
 #include <tuple>
@@ -69,7 +70,12 @@ namespace callgraph {
             template <size_t N>
             typename node_param_type<N, Params...>::type get() const {
                 using std::get;
-                return get<N>(this->params_)->get();
+
+                const auto& p(get<N>(this->params_));
+                if (!p) {
+                    CALLGRAPH_THROW(node_parameter_missing);
+                }
+                return p->get();
             }
 
             bool valid() const {

@@ -9,25 +9,35 @@
 #include <callgraph/detail/node_traits.hpp>
 #include <callgraph/detail/node_value.hpp>
 
+#include <typeindex>
+#include <typeinfo>
+
 #ifndef NO_DOC
 namespace callgraph { namespace detail {
 
-        template <typename T>
-        struct node_base;
+        struct node_base {
+            virtual ~node_base() = default;
+            virtual const std::type_info& type_info() const = 0;
+            virtual bool less(const node_base* other) const = 0;
+            virtual bool less(const node_base& other) const = 0;
+        };
+
+        template <typename>
+        struct node_impl;
 
         template <typename R, typename... Params>
-        struct node_base<R (Params...)> {
-            node_base()
+        struct node_impl<R (Params...)> : node_base {
+            node_impl()
                 {
                 }
 
             template <size_t To, typename T>
-            void connect(node_base<T>& source) {
+            void connect(node_impl<T>& source) {
                 params_.connect<To>(source.result_);
             }
 
             template <size_t From, size_t To, typename T>
-            void connect(node_base<T>& source) {
+            void connect(node_impl<T>& source) {
                 params_.connect<From, To>(source.result_);
             }
 
@@ -50,14 +60,14 @@ namespace callgraph { namespace detail {
         };
 
         template <typename R>
-        struct node_base<R ()> {
-            node_base()
+        struct node_impl<R ()> : node_base {
+            node_impl()
                 : input_(nullptr)
                 {
                 }
 
             template <typename T>
-            void connect(node_base<T>& source) {
+            void connect(node_impl<T>& source) {
                 input_ = &source.result_;
             }
 
@@ -81,13 +91,13 @@ namespace callgraph { namespace detail {
 
         template <typename T>
         struct node
-            : node_base<typename node_traits<
+            : node_impl<typename node_traits<
                             typename std::decay<T>::type>::signature> {
         public:
             using type = typename std::decay<T>::type;
             using traits_type = node_traits<type>;
             using signature = typename traits_type::signature;
-            using base_type = node_base<signature>;
+            using base_type = node_impl<signature>;
 
 
             node(T&& t)
@@ -107,6 +117,34 @@ namespace callgraph { namespace detail {
                 return base_type::valid();
             }
 
+            const std::type_info& type_info() const override {
+                return typeid(T);
+            }
+
+            bool less(const node_base& other) const override {
+                const auto& lht = this->type_info();
+                const auto& rht = other.type_info();
+
+                if (lht == rht) {
+                    const auto& f = fn();
+                    const auto& g = static_cast<const node<T>*>(&other)->fn();
+                    return &f < &g;
+                }
+                else {
+                    return std::type_index(lht) < std::type_index(rht);
+                }
+            }
+
+            bool less(const node_base* other) const override {
+                if (other != nullptr) {
+                    return less(*other);
+                }
+                return false;
+            }
+
+            type fn() const {
+                return fn_;
+            }
         private:
             type fn_;
         };

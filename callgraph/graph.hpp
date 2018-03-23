@@ -4,39 +4,21 @@
 #ifndef CALLGRAPH_GRAPH_HPP
 #define CALLGRAPH_GRAPH_HPP
 
+#include <callgraph/error.hpp>
 #include <callgraph/detail/graph_node.hpp>
 #include <callgraph/detail/node.hpp>
 #include <callgraph/detail/node_key.hpp>
-#include <callgraph/vertex.hpp>
 #include <callgraph/detail/unwrap_vertex.hpp>
+#include <callgraph/vertex.hpp>
 
 #include <algorithm>
-#include <stdexcept>
+#include <set>
 #include <unordered_map>
 #include <vector>
-
+#include <iostream>
 /// \brief The main Callgraph namespace.
 namespace callgraph {
     class graph_runner;
-
-/// \brief An error thrown if connecting a node would cause a cycle.
-    class cycle_error : public std::runtime_error {
-    public:
-        cycle_error()
-            : runtime_error("Connecting f->g forms a cycle.")
-            {
-            }
-    };
-
-/// \brief An error thrown if the source node in a connection
-/// request is not found.
-    class source_node_not_found : public std::runtime_error {
-    public:
-        source_node_not_found()
-            : runtime_error("Source node not found in graph.")
-            {
-            }
-    };
 
 /// \brief A graph is a container of asynchronous executable nodes
 /// joined into a directed acyclic graph.
@@ -50,7 +32,7 @@ namespace callgraph {
         /// \brief Construct an empty graph, consisting only of a no-op root node.
         graph()
             : root_(&graph::dummy),
-              root_node_(ensure_node(root_)->second)
+              root_node_(make_root_node())
             {
             }
 
@@ -70,7 +52,7 @@ namespace callgraph {
         /// the returned object to make connections to 't'.
         template <typename T>
         constexpr auto connect(T&& t) -> decltype(auto) {
-            return connect(std::forward<void(*)()>(root_), std::forward<T>(t));
+            return connect(root_, std::forward<T>(t));
         }
 
         /// \brief Connect functions `f` and `g`.
@@ -89,16 +71,18 @@ namespace callgraph {
             using f_type = typename detail::unwrap_vertex<F>::type;
             using g_type = typename detail::unwrap_vertex<G>::type;
 
-            auto fnode = get_node(std::forward<F>(f));
-            if (fnode == nodes_.end()) {
-                throw source_node_not_found();
-            }
-            throw_if_cycle(fnode->second, std::forward<G>(g));
+            auto fit = prepare_connect(std::forward<F>(f), std::forward<G>(g));
 
-            auto gnode = ensure_node(std::forward<G>(g));
-            to_node<g_type>(gnode)->connect(*to_node<f_type>(fnode));
-            fnode->second.add_child(&gnode->second);
-            return vertex<g_type>(detail::unwrap_vertex<G>::apply(g), *this);
+            // Find or make the destination node.
+            auto git = ensure_node(std::forward<G>(g));
+
+            // Connect
+            to_node<g_type>(git)->connect(*to_node<f_type>(git));
+
+            // Add dest node as a child.
+            add_child(fit, *git);
+
+            return make_vertex(std::forward<G>(g));
         }
 
         /// \brief Connect functions `f` and `g`.
@@ -120,16 +104,18 @@ namespace callgraph {
             using f_type = typename detail::unwrap_vertex<F>::type;
             using g_type = typename detail::unwrap_vertex<G>::type;
 
-            auto fnode = get_node(std::forward<F>(f));
-            if (fnode == nodes_.end()) {
-                throw source_node_not_found();
-            }
-            throw_if_cycle(fnode->second, std::forward<G>(g));
+            auto fit = prepare_connect(std::forward<F>(f), std::forward<G>(g));
 
-            auto gnode = ensure_node(std::forward<G>(g));
-            to_node<g_type>(gnode)->connect<To>(*to_node<f_type>(fnode));
-            fnode->second.add_child(&gnode->second);
-            return vertex<g_type>(detail::unwrap_vertex<G>::apply(g), *this);
+            // Find or make the destination node.
+            auto git = ensure_node(std::forward<G>(g));
+
+            // Connect
+            to_node<g_type>(git)->connect<To>(*to_node<f_type>(git));
+
+            // Add dest node as a child.
+            add_child(fit, *git);
+
+            return make_vertex(std::forward<G>(g));
         }
 
         /// \brief Connect functions `f` and `g`.
@@ -155,16 +141,18 @@ namespace callgraph {
             using f_type = typename detail::unwrap_vertex<F>::type;
             using g_type = typename detail::unwrap_vertex<G>::type;
 
-            auto fnode = get_node(std::forward<F>(f));
-            if (fnode == nodes_.end()) {
-                throw source_node_not_found();
-            }
-            throw_if_cycle(fnode->second, std::forward<G>(g));
+            auto fit = prepare_connect(std::forward<F>(f), std::forward<G>(g));
 
-            auto gnode = ensure_node(std::forward<G>(g));
-            to_node<g_type>(gnode)->connect<From, To>(*to_node<f_type>(fnode));
-            fnode->second.add_child(&gnode->second);
-            return vertex<g_type>(detail::unwrap_vertex<G>::apply(g), *this);
+            // Find or make the destination node.
+            auto git = ensure_node(std::forward<G>(g));
+
+            // Connect
+            to_node<g_type>(git)->connect<From, To>(*to_node<f_type>(git));
+
+            // Add dest node as a child.
+            add_child(fit, *git);
+
+            return make_vertex(std::forward<G>(g));
         }
 
         /// \brief Check that each node in the graph with a non-empty
@@ -172,10 +160,12 @@ namespace callgraph {
         bool valid() const {
             return std::all_of(std::begin(nodes_),
                                std::end(nodes_),
-                               [this](const auto& pair)
+                               [this](const auto& node)
                                {
-                                   return pair.first == fn_key(root_) ||
-                                       pair.second.valid();
+                                   // root is invalid due to missing input but
+                                   // it doesn't matter because we start with
+                                   // the root.
+                                   return node.holds(root_) || node.valid();
                                });
         }
 
@@ -188,8 +178,8 @@ namespace callgraph {
         /// \brief Get the number of nodes which have no children.
         size_t leaves() const {
             size_t l(0);
-            for (auto& pair : nodes_) {
-                if (pair.second.children_.size() == 0) {
+            for (const auto& node : nodes_) {
+                if (node.children_.size() == 0) {
                     l++;
                 }
             }
@@ -206,80 +196,108 @@ namespace callgraph {
             // For each pair of nodes, if there is a path
             // between them with a distance > 1, remove the
             // edge between them.
-            using pair_type =
-                std::pair<graph_node_type*, const graph_node_type*>;
-            std::vector<pair_type> remove;
-            for (auto& kpair : nodes_) {
-                graph_node_type& knode(kpair.second);
+            for (auto it = nodes_.begin(); it != nodes_.end(); ++it) {
+                std::vector<const graph_node_type*> remove;
+                const graph_node_type& knode(*it);
                 for (const graph_node_type* jnode : knode.children_) {
                     if (longest_path(&knode, jnode) > 1) {
-                        remove.emplace_back(&knode, jnode);
+                        remove.emplace_back(jnode);
                     }
                 }
-            }
-            for (auto &rpair : remove) {
-                rpair.first->children_.erase(rpair.second);
+                if (!remove.empty()) {
+                    graph_node_type copy(knode);
+                    for (auto child : remove) {
+                        copy.children_.erase(child);
+                    }
+                    auto hint = nodes_.erase(it);
+                    nodes_.emplace(std::move(copy));
+                }
             }
         }
 
     private:
-        template <typename T>
-        using node_type = callgraph::detail::node<T>;
-
-        using graph_node_type = callgraph::detail::graph_node;
         friend class graph_runner;
 
-        using fn_key = detail::node_key;
-        using map_type = std::unordered_map<fn_key, graph_node_type>;
+        using graph_node_type = callgraph::detail::graph_node;
+        using set_type = std::set<graph_node_type, detail::graph_node_less>;
+
+        template <typename T>
+        constexpr auto make_vertex(T&& t) -> decltype(auto) {
+            using type = typename detail::unwrap_vertex<T>::type;
+            return vertex<type>(unwrap_vertex(std::forward<T>(t)), *this);
+        }
+
+        template <typename T>
+        static constexpr auto unwrap_vertex(T&& t) -> decltype(auto) {
+            return detail::unwrap_vertex<T>::apply(std::forward<T>(t));
+        }
+
+        template <typename F, typename G>
+        constexpr auto prepare_connect(F&& f, G&& g) -> decltype(auto) const {
+
+            // Find the source node.
+            auto fit = find_node(std::forward<F>(f));
+            if (fit == nodes_.end()) {
+                CALLGRAPH_THROW(source_node_not_found);
+            }
+            throw_if_cycle(*fit, std::forward<G>(g));
+            return fit;
+        }
+
+        void add_child(set_type::iterator parent,
+                       const graph_node_type& child) {
+            // Do a constant-time replace.
+            auto hint = parent;
+            hint++;
+            graph_node_type cpy(*parent);
+            cpy.add_child(child);
+            nodes_.erase(parent);
+            nodes_.emplace_hint(hint, std::move(cpy));
+        }
 
         template <typename T, typename It>
-        static constexpr node_type<T>* to_node(It it) {
-            return it->second.to_node<T>();
+        static constexpr auto to_node(It it) -> decltype(auto) {
+            return it->to_node<T>();
         }
 
         template <typename G>
         void throw_if_cycle(const graph_node_type& f, G&& g) {
-            auto gnode = get_node(std::forward<G>(g));
-            if (gnode != nodes_.end()) {
-                if (f.makes_cycle(&gnode->second)) {
-                    throw cycle_error();
+            auto git = find_node(std::forward<G>(g));
+            if (git != nodes_.end()) {
+                const auto& gnode = *git;
+                if (f.makes_cycle(&gnode)) {
+                    CALLGRAPH_THROW(cycle_error);
                 }
             }
         }
-
         template <typename T>
-        static fn_key to_key(T&& t) {
-            return detail::to_node_key<T>::apply(std::forward<T>(t));
-        };
-
-        template <typename T>
-        map_type::iterator ensure_node(T&& t) {
-            fn_key key = to_key(t);
-            auto found = nodes_.find(key);
+        constexpr auto ensure_node(T&& t) -> decltype(auto) {
+            auto found = nodes_.find(std::forward<T>(t));
             if (found == nodes_.end()) {
                 found = nodes_.emplace(
-                    key, detail::make_graph_node(std::forward<T>(t))).first;
+                    detail::make_graph_node(std::forward<T>(t))).first;
             }
             return found;
         }
 
         template <typename T>
-        map_type::iterator get_node(T&& t) {
-            fn_key key = to_key(t);
-            return nodes_.find(key);
+        constexpr auto find_node(T&& t) -> decltype(auto) {
+            return nodes_.find(std::forward<T>(t));
         }
-
         template <typename T>
-        map_type::const_iterator get_node(T&& t) const {
-            fn_key key = to_key(t);
-            return nodes_.find(key);
+        constexpr auto find_node(T&& t) const -> decltype(auto)  {
+            return nodes_.find(std::forward<T>(t));
         }
 
         static void dummy() {}
 
-        map_type nodes_;
+        const graph_node_type& make_root_node() {
+            return *ensure_node(root_);
+        }
+
+        set_type nodes_;
         void (*root_)();
-        graph_node_type& root_node_;
+        const graph_node_type& root_node_;
     };
 }
 

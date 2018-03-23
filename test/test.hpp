@@ -10,6 +10,7 @@
 #include <iostream>
 #include <map>
 #include <memory>
+#include <regex>
 #include <sstream>
 #include <vector>
 #include <type_traits>
@@ -56,17 +57,33 @@ namespace callgraph_test {
         using type = std::function<std::unique_ptr<test_case_base>()>;
 
         template <typename F>
-        inline void register_test_case(F test) {
+        void register_test_case(F test) {
             cases_.emplace_back(test);
         }
 
-        inline int run_all() {
+        int run_all() {
+            return run_if([](auto) { return true; });
+        }
+
+        int run_matching(const std::regex& re) {
+            return run_if([re](test_case_base* t) {
+                    return std::regex_match(t->name(), re);
+                });
+        }
+
+        const char* current() const { return cur_; }
+
+    private:
+        template <typename P>
+        int run_if(P pred) {
             int run(0);
             std::map<std::string, std::exception_ptr> errors;
 
-            for (type ctor : cases_) {
+            for (auto ctor : cases_) {
                 auto test = ctor();
-
+                if (!pred(test.get())) {
+                    continue;
+                }
                 cur_ = test->name();
                 std::cout << "Running " << cur_ << "... ";
                 try {
@@ -97,9 +114,6 @@ namespace callgraph_test {
             return failed;
         }
 
-        inline const char* current() const { return cur_; }
-
-    private:
         const char* cur_;
         std::vector<type> cases_;
     };
@@ -157,7 +171,7 @@ namespace callgraph_test {
 
         template <typename T>
         typename on_unstreamable<typename std::decay<T>::type>::type
-        value_of(T&& t) {
+        value_of(T&&) {
             return "";
         }
     }

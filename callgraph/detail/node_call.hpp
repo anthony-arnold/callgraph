@@ -12,19 +12,19 @@
 namespace callgraph {
     namespace detail {
 
-        template <size_t...>
-        struct node_call_sequence {};
+        template <int...>
+        struct call_seq {};
 
-        template <size_t M, size_t... N>
-        struct generate_node_call_sequence
-            : generate_node_call_sequence<M - 1, M - 1, N...>
+        template <int M, int... N>
+        struct gen_call_seq
+            : gen_call_seq<M - 1, M - 1, N...>
         {
         };
 
-        template <size_t... N>
-        struct generate_node_call_sequence<0, N...>
+        template <int... N>
+        struct gen_call_seq<0, N...>
         {
-            using type = node_call_sequence<N...>;
+            using type = call_seq<N...>;
         };
 
         template <typename T>
@@ -33,38 +33,44 @@ namespace callgraph {
         template <typename R, typename... Args>
         struct node_call<R(Args...)> {
             template <typename T, typename U, typename V>
-            static void apply(T& t, U& params, V& result) {
-                using sequence_type =
-                    typename generate_node_call_sequence<node_traits<T>::arity>::type;
-                result.set(apply(t, params, sequence_type()));
+            static void apply(T&& t, U&& params, V&& result) {
+                using t_type = typename std::decay<T>::type;
+                static const auto arity = node_traits<t_type>::arity;
+                using sequence_type = typename gen_call_seq<arity>::type;
+                result.set(apply(std::forward<T>(t),
+                                 std::forward<U>(params),
+                                 sequence_type()));
             }
 
-            template <typename T, typename U, size_t... N>
-            static R apply(T& t, U& params, node_call_sequence<N...>) {
-                return t(get_node_params<N>(params)...);
+            template <typename T, typename U, int... N>
+            static R apply(T&& t, U&& params, call_seq<N...>) {
+                return t(get_node_params<N>(std::forward<U>(params))...);
             }
         };
 
         template <typename... Args>
         struct node_call<void(Args...)> {
             template <typename T, typename U, typename V>
-            static void apply(T& t, U& params, V& result) {
-                using sequence_type =
-                    typename generate_node_call_sequence<node_traits<T>::arity>::type;
-                apply(t, params, sequence_type());
+            static void apply(T&& t, U&& params, V&& result) {
+                using t_type = typename std::decay<T>::type;
+                static const auto arity = node_traits<t_type>::arity;
+                using sequence_type = typename gen_call_seq<arity>::type;
+                apply(std::forward<T>(t),
+                      std::forward<U>(params),
+                      sequence_type());
                 result.set();
             }
 
-            template <typename T, typename U, size_t... N>
-            static void apply(T& t, U& params, node_call_sequence<N...>) {
-                t(get_node_params<N>(params)...);
+            template <typename T, typename U, int... N>
+            static void apply(T&& t, U&& params, call_seq<N...>) {
+                t(get_node_params<N>(std::forward<U>(params))...);
             }
         };
 
         template <typename R>
         struct node_call<R()> {
             template <typename T, typename U, typename V>
-            static void apply(T& t, U& future, V& result) {
+            static void apply(T&& t, U&& future, V&& result) {
                 if (future) {
                     future->wait();
                 }
@@ -75,7 +81,7 @@ namespace callgraph {
         template <>
         struct node_call<void()> {
             template <typename T, typename U, typename V>
-            static void apply(T& t, U& future, V& result) {
+            static void apply(T&& t, U&& future, V&& result) {
                 if (future) {
                     future->wait();
                 }

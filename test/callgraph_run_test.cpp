@@ -17,8 +17,8 @@ CALLGRAPH_TEST(empty_callgraph_runs) {
 
 CALLGRAPH_TEST(callgraph_runs_once) {
     int i(0);
-    static const int expect(0xdeadbeef);
-    auto a = [&i] () { i = 0xdeadbeef; };
+    static const int expect(123);
+    auto a = [&i] () { i = 123; };
 
     callgraph::graph pipe;
     pipe.connect(a);
@@ -31,9 +31,9 @@ CALLGRAPH_TEST(callgraph_runs_once) {
 }
 
 CALLGRAPH_TEST(callgraph_runs_multiple_times) {
-    int i(0);
+    int k(0);
     static const int expect(10);
-    auto a = [&i] () { i++; };
+    auto a = [&k] () { k++; };
 
     callgraph::graph pipe;
     pipe.connect(a);
@@ -44,5 +44,5 @@ CALLGRAPH_TEST(callgraph_runs_multiple_times) {
         auto status = future.wait_for(std::chrono::seconds(1));
         CALLGRAPH_EQUAL(status, std::future_status::ready);
     }
-    CALLGRAPH_EQUAL(i, expect);
+    CALLGRAPH_EQUAL(k, expect);
 }

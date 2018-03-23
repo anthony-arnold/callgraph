@@ -19,7 +19,7 @@ namespace callgraph {
         /// \brief Construct a new vertex.
         /// \param impl The function the vertex wraps.
         /// \param g The graph the function is connected to.
-        constexpr vertex(T& impl, graph& g)
+        constexpr vertex(const T& impl, graph& g)
             : impl_(impl), g_(g)
             {
             }
@@ -38,7 +38,7 @@ namespace callgraph {
 
 
         /// Get the underlying implementation.
-        constexpr T& impl() const {
+        constexpr const T& impl() const {
             return impl_;
         }
 
@@ -48,7 +48,7 @@ namespace callgraph {
         }
 
     private:
-        T& impl_;
+        const T& impl_;
         graph& g_;
     };
 }

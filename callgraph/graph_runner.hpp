@@ -8,6 +8,7 @@
 #include <callgraph/detail/graph_node.hpp>
 
 #include <condition_variable>
+#include <iterator>
 #include <mutex>
 #include <future>
 #include <queue>
@@ -68,8 +69,8 @@ namespace callgraph {
         /// have finished.
         std::future<void> execute() {
             std::unique_lock<std::mutex> lk(done_mutex_);
-            for (auto& pair : graph_.nodes_) {
-                pair.second.reset();
+            for (auto& node : graph_.nodes_) {
+                node.reset();
             }
             leaves_ = max_leaves_;
 
@@ -80,6 +81,7 @@ namespace callgraph {
             }
 
             done_ = std::promise<void>();
+
             enqueue_node(&graph_.root_node_);
             return done_.get_future();
         }
@@ -102,7 +104,6 @@ namespace callgraph {
             std::unique_lock<std::mutex> lk(queue_mutex_);
             queue_ = std::queue<const graph_node_type*>();
         }
-
         graph& graph_;
         bool on_;
 
