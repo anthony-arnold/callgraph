@@ -11,7 +11,7 @@ namespace callgraph {
 
     namespace detail {
 
-        template <typename T, typename>
+        template <typename T>
         struct unwrap_vertex_impl {
             using type = T;
 
@@ -21,9 +21,9 @@ namespace callgraph {
             }
         };
 
-        template <typename T, typename U>
-        struct unwrap_vertex_impl<T, vertex<U> > {
-            using type = U;
+        template <typename T>
+        struct unwrap_vertex_impl<vertex<T> > {
+            using type = T;
 
             template <typename V>
             static constexpr auto apply(V&& v) -> decltype(auto) {
@@ -33,7 +33,7 @@ namespace callgraph {
 
         template <typename T>
         struct unwrap_vertex
-            : unwrap_vertex_impl<T, typename std::decay<T>::type> {
+            : unwrap_vertex_impl<typename std::decay<T>::type> {
         };
     }
 }

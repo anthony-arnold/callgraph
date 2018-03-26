@@ -68,21 +68,22 @@ namespace callgraph {
 
             template <typename T>
             struct node_executor {
-                node_executor(void* ptr)
-                    : ptr_(ptr)
-                    {
-                    }
+                using type = node<T>*;
 
-                void operator()() {
-                    (*static_cast<node<T>*>(ptr_))();
+                node_executor(node_base* ptr) : ptr_(ptr) {
                 }
 
-                void* ptr_;
+                void operator()() {
+                    (*static_cast<type>(ptr_))();
+                }
+
+                node_base* ptr_;
             };
 
             template <typename T, typename U>
             graph_node(T&& t, U)
-                : node_(new node<T>(std::forward<T>(t)), node_deleter<T>()),
+                : node_(new node<T>(std::forward<T>(t)),
+                        node_deleter<T>()),
                   exec_fn_(node_executor<T>(node_.get())),
                   validator_fn_(node_validator<T>()),
                   resetter_fn_(node_resetter<T>())
@@ -94,10 +95,14 @@ namespace callgraph {
             graph_node& operator=(graph_node&& g) = default;
             graph_node(const graph_node& g) = default;
             graph_node& operator=(const graph_node& g) = default;
-
+/*
             template <typename T>
-            node<T>* to_node() const {
+            constexpr auto to_node() const -> decltype(auto) {
                 return static_cast<node<T>*>(node_.get());
+            }
+*/
+            node_base* to_node() const {
+                return node_.get();
             }
 
             bool valid() const {
@@ -251,7 +256,7 @@ namespace callgraph {
             using is_transparent = std::true_type;
 
             template <typename L, typename R>
-            bool operator()(L&& l, R&& r) {
+            bool operator()(L&& l, R&& r) const {
                 return graph_node_less_impl<
                     typename std::decay<L>::type,
                     typename std::decay<R>::type>::apply(std::forward<L>(l),
@@ -280,6 +285,11 @@ namespace callgraph {
         graph_node make_graph_node(T&& t) {
             return make_graph_node_impl<T,
                                         typename std::decay<T>::type>::apply(t);
+        }
+
+        template <typename T>
+        node<T>* to_node(const graph_node& gn) {
+            return static_cast<node<T>*>(gn.to_node());
         }
     }
 }

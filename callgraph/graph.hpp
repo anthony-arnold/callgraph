@@ -28,8 +28,8 @@ namespace callgraph {
 /// allowing the graph object to manage synchronisation and resources.
     class graph {
     public:
-
-        /// \brief Construct an empty graph, consisting only of a no-op root node.
+        /// \brief Construct an empty graph,
+        /// consisting only of a no-op root node.
         graph()
             : root_(&graph::dummy),
               root_node_(make_root_node())
@@ -77,7 +77,7 @@ namespace callgraph {
             auto git = ensure_node(std::forward<G>(g));
 
             // Connect
-            to_node<g_type>(git)->connect(*to_node<f_type>(git));
+            to_node<g_type>(*git)->connect(*to_node<f_type>(*fit));
 
             // Add dest node as a child.
             add_child(fit, *git);
@@ -110,7 +110,7 @@ namespace callgraph {
             auto git = ensure_node(std::forward<G>(g));
 
             // Connect
-            to_node<g_type>(git)->connect<To>(*to_node<f_type>(git));
+            to_node<g_type>(*git)->template connect<To>(*to_node<f_type>(*fit));
 
             // Add dest node as a child.
             add_child(fit, *git);
@@ -147,7 +147,8 @@ namespace callgraph {
             auto git = ensure_node(std::forward<G>(g));
 
             // Connect
-            to_node<g_type>(git)->connect<From, To>(*to_node<f_type>(git));
+            to_node<g_type>(*git)->template connect<From, To>(
+                *to_node<f_type>(*fit));
 
             // Add dest node as a child.
             add_child(fit, *git);
@@ -244,6 +245,11 @@ namespace callgraph {
             return fit;
         }
 
+        template <typename T>
+        static auto to_node(const graph_node_type& g) -> decltype(auto) {
+            return detail::to_node<T>(g);
+        }
+
         void add_child(set_type::iterator parent,
                        const graph_node_type& child) {
             // Do a constant-time replace.
@@ -254,12 +260,6 @@ namespace callgraph {
             nodes_.erase(parent);
             nodes_.emplace_hint(hint, std::move(cpy));
         }
-
-        template <typename T, typename It>
-        static constexpr auto to_node(It it) -> decltype(auto) {
-            return it->to_node<T>();
-        }
-
         template <typename G>
         void throw_if_cycle(const graph_node_type& f, G&& g) {
             auto git = find_node(std::forward<G>(g));
