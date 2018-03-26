@@ -142,7 +142,7 @@ namespace callgraph { namespace detail {
                 return false;
             }
 
-            type fn() const {
+            const type& fn() const {
                 return fn_;
             }
         private:

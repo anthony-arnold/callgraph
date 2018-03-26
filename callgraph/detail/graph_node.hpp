@@ -29,7 +29,6 @@ namespace callgraph {
             }
         };
 
-
         template <typename V>
         struct function_less_t<V*> {
             template <typename T, typename U>
@@ -40,6 +39,25 @@ namespace callgraph {
 
         template <typename T>
         struct function_less : function_less_t<T> {};
+
+        template <typename>
+        struct function_greater_t {
+            template <typename T, typename U>
+            static bool apply(T&& t, U&& u) {
+                return &t > &u;
+            }
+        };
+
+        template <typename V>
+        struct function_greater_t<V*> {
+            template <typename T, typename U>
+            static bool apply(T&& t, U&& u) {
+                return t > u;
+            }
+        };
+
+        template <typename T>
+        struct function_greater : function_greater_t<T> {};
 
         struct graph_node {
             friend struct graph_worker;
@@ -95,12 +113,7 @@ namespace callgraph {
             graph_node& operator=(graph_node&& g) = default;
             graph_node(const graph_node& g) = default;
             graph_node& operator=(const graph_node& g) = default;
-/*
-            template <typename T>
-            constexpr auto to_node() const -> decltype(auto) {
-                return static_cast<node<T>*>(node_.get());
-            }
-*/
+
             node_base* to_node() const {
                 return node_.get();
             }
@@ -184,6 +197,28 @@ namespace callgraph {
                 return is_less;
             }
 
+            template <typename T>
+            friend bool operator >(const graph_node& g, T&& t) {
+                using dtype = typename std::decay<
+                    typename unwrap_vertex<T>::type>::type;
+                bool is_gt(false);
+                if (g.node_) {
+                    auto lhs = std::type_index(g.node_->type_info());
+                    auto rhs = std::type_index(typeid(dtype));
+
+                    if (lhs == rhs) {
+                        const auto& fn =
+                            static_cast<node<dtype>*>(g.node_.get())->fn();
+                        is_gt = function_greater<dtype>::apply(
+                            fn, unwrap_vertex<T>::apply(std::forward<T>(t)));
+                    }
+                    else {
+                        is_gt = lhs > rhs;
+                    }
+                }
+                return is_gt;
+            }
+
             friend bool operator <(const graph_node& l, const graph_node& r) {
                 bool is_less(false);
                 if (l.node_) {
@@ -237,7 +272,7 @@ namespace callgraph {
         template <typename T>
         struct graph_node_less_impl<T, graph_node> {
             static bool apply(const T& t, const graph_node& g) {
-                return !(g < t);
+                return g > t;
             }
         };
         template <typename T>

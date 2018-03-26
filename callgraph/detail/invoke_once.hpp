@@ -12,9 +12,8 @@ namespace callgraph {
     namespace detail {
 
         struct invoke_once {
-            template <typename T>
-            invoke_once(T&& t)
-                : fn_(std::forward<T>(t)),
+            invoke_once(const std::function<void()>& t)
+                : fn_(t),
                   invoked_(false)
                 {
                 }
