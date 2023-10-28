@@ -50,7 +50,7 @@ namespace callgraph {
         /// \brief Construct an empty graph, consisting only of a no-op root node.
         graph()
             : root_(&graph::dummy),
-              root_node_(ensure_node(root_)->second)
+              root_node_(&ensure_node(root_)->second)
             {
             }
 
@@ -96,7 +96,7 @@ namespace callgraph {
             throw_if_cycle(fnode->second, std::forward<G>(g));
 
             auto gnode = ensure_node(std::forward<G>(g));
-            to_node<g_type>(gnode)->connect(*to_node<f_type>(fnode));
+            to_node<g_type>(gnode)->template connect(*to_node<f_type>(fnode));
             fnode->second.add_child(&gnode->second);
             return vertex<g_type>(detail::unwrap_vertex<G>::apply(g), *this);
         }
@@ -127,7 +127,7 @@ namespace callgraph {
             throw_if_cycle(fnode->second, std::forward<G>(g));
 
             auto gnode = ensure_node(std::forward<G>(g));
-            to_node<g_type>(gnode)->connect<To>(*to_node<f_type>(fnode));
+            to_node<g_type>(gnode)->template connect<To>(*to_node<f_type>(fnode));
             fnode->second.add_child(&gnode->second);
             return vertex<g_type>(detail::unwrap_vertex<G>::apply(g), *this);
         }
@@ -162,7 +162,7 @@ namespace callgraph {
             throw_if_cycle(fnode->second, std::forward<G>(g));
 
             auto gnode = ensure_node(std::forward<G>(g));
-            to_node<g_type>(gnode)->connect<From, To>(*to_node<f_type>(fnode));
+            to_node<g_type>(gnode)->template connect<From, To>(*to_node<f_type>(fnode));
             fnode->second.add_child(&gnode->second);
             return vertex<g_type>(detail::unwrap_vertex<G>::apply(g), *this);
         }
@@ -182,7 +182,7 @@ namespace callgraph {
         /// \brief Get the depth of the graph, which hints at the
         /// number of worker threads required.
         size_t depth() const {
-            return root_node_.depth();
+            return root_node_->depth();
         }
 
         /// \brief Get the number of nodes which have no children.
@@ -234,7 +234,7 @@ namespace callgraph {
 
         template <typename T, typename It>
         static constexpr node_type<T>* to_node(It it) {
-            return it->second.to_node<T>();
+            return it->second.template to_node<T>();
         }
 
         template <typename G>
@@ -279,7 +279,7 @@ namespace callgraph {
 
         map_type nodes_;
         void (*root_)();
-        graph_node_type& root_node_;
+        graph_node_type* root_node_;
     };
 }
 

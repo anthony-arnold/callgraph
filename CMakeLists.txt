@@ -1,6 +1,6 @@
 # License: BSD-2-Clause
 # Main CMake project for the callgraph library.
-cmake_minimum_required(VERSION 3.1)
+cmake_minimum_required(VERSION 3.27)
 
 set(NAME callgraph)
 set(VERSION 0.0.0)

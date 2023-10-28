@@ -26,9 +26,9 @@ namespace callgraph {
     public:
         /// \brief Construct a callgraph runner which wraps a graph.
         graph_runner(graph& g)
-            : graph_(g),
+            : graph_(&g),
               on_(true),
-              max_leaves_(graph_.leaves())
+              max_leaves_(graph_->leaves())
             {
             }
 
@@ -46,11 +46,8 @@ namespace callgraph {
 
         graph_runner(const graph_runner&) = delete;
         graph_runner& operator=(const graph_runner&) = delete;
-
-        /// \brief Move construct a callgraph runner.
-        graph_runner(graph_runner&&) = default;
-        /// \brief Move assign a callgraph runner.
-        graph_runner& operator=(graph_runner&&) = default;
+        graph_runner(graph_runner&& other) = delete;
+        graph_runner& operator=(graph_runner&& other) = delete;
 
         /// \brief Execute the call graph asynchronously.
         /// \return A future which can be used to wait for the call to finish or
@@ -68,19 +65,19 @@ namespace callgraph {
         /// have finished.
         std::future<void> execute() {
             std::unique_lock<std::mutex> lk(done_mutex_);
-            for (auto& pair : graph_.nodes_) {
+            for (auto& pair : graph_->nodes_) {
                 pair.second.reset();
             }
             leaves_ = max_leaves_;
 
-            size_t min_workers(graph_.depth());
+            size_t min_workers(graph_->depth());
             workers_.reserve(min_workers);
             while (workers_.size() < min_workers) {
                 workers_.emplace_back(std::make_shared<graph_worker_type>(*this));
             }
 
             done_ = std::promise<void>();
-            enqueue_node(&graph_.root_node_);
+            enqueue_node(graph_->root_node_);
             return done_.get_future();
         }
 
@@ -103,7 +100,7 @@ namespace callgraph {
             queue_ = std::queue<const graph_node_type*>();
         }
 
-        graph& graph_;
+        graph* graph_;
         bool on_;
 
         // Order is important here! Anything that might lock these

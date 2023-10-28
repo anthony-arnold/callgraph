@@ -23,12 +23,12 @@ namespace callgraph { namespace detail {
 
             template <size_t To, typename T>
             void connect(node_base<T>& source) {
-                params_.connect<To>(source.result_);
+                params_.template connect<To>(source.result_);
             }
 
             template <size_t From, size_t To, typename T>
             void connect(node_base<T>& source) {
-                params_.connect<From, To>(source.result_);
+                params_.template connect<From, To>(source.result_);
             }
 
             template <typename T>
