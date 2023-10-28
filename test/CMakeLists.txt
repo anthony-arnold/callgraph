@@ -8,7 +8,7 @@ project(${NAME})
 
 # Set required standard
 set(CMAKE_CXX_EXTENSIONS OFF)
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 20)
 
 if (MSVC)
    # Turn off some warnings that can safely be ignored.
