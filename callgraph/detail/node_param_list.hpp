@@ -53,18 +53,18 @@ namespace callgraph {
             void connect(node_value<T>& source) {
                 using dst_t = typename node_param_type<To, Params...>::type;
                 using src_t = T;
-                using type = node_value_ref<dst_t, src_t, -1>;
+                using type = node_value_ref<dst_t, src_t>;
                 using std::get;
-                get<To>(params_).reset(new type(source));
+                get<To>(params_) = std::make_shared<type>(source);
             }
 
             template <size_t From, size_t To, typename T>
             void connect(node_value<T>& source) {
                 using dst_t = typename node_param_type<To, Params...>::type;
                 using src_t = T;
-                using type = node_value_ref<dst_t, src_t, From>;
+                using type = node_value_index_ref<dst_t, src_t, From>;
                 using std::get;
-                get<To>(params_).reset(new type(source));
+                get<To>(params_) = std::make_shared<type>(source);
             }
 
             template <size_t N>

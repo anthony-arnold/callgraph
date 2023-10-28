@@ -49,30 +49,19 @@ namespace callgraph {
             }
         };
 
-        template <typename T, int N>
-        struct ref_traits
-            : std::tuple_element<N, T>
-        {
-        };
-
-        template <typename T>
-        struct ref_traits<T, -1> {
-            using type = T;
-        };
-
         template <typename T>
         struct node_value_ref_base {
             using type = T;
             virtual type get() const = 0;
         };
 
-        template <typename T, typename U, int N>
-        struct node_value_ref :
+        template <typename T, typename U, size_t N>
+        struct node_value_index_ref :
             node_value_ref_base<T>
         {
             using type = T;
 
-            node_value_ref(node_value<U>& ref)
+            node_value_index_ref(node_value<U>& ref)
                 : ref_(ref)
                 {
                 }
@@ -90,7 +79,7 @@ namespace callgraph {
         };
 
         template <typename T, typename U>
-        struct node_value_ref<T, U, -1> : node_value_ref_base<T>
+        struct node_value_ref : node_value_ref_base<T>
         {
             using type = T;
 

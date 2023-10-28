@@ -10,6 +10,7 @@
 #include <queue>
 #include <utility>
 #include <vector>
+#include <cmath>
 
 CALLGRAPH_TEST(callgraph_std_less_logical_not) {
    callgraph::graph pipe;
@@ -91,4 +92,100 @@ CALLGRAPH_TEST(callgraph_equal) {
    callgraph::graph_runner runner(pipe);
    auto future = runner.execute();
    future.wait_for(std::chrono::seconds(1));
+}
+
+#include <fstream>
+CALLGRAPH_TEST(callgraph_complexity) {
+   using namespace std::chrono;
+   using namespace std::chrono_literals;
+   using namespace std::placeholders;
+
+   struct ticker {
+      int i;
+      int operator()() {
+         return i++;
+      }
+   };
+
+   struct tick_to_rad {
+      double operator()(int tick) {
+         auto ts = high_resolution_clock::now();
+         rate = 0s;
+         if (prev.time_since_epoch() != 0s) {
+            rate = ts - prev;
+         }
+         prev = ts;
+         return tick / 60.0;
+      }
+
+      void throttle() {
+         using target_rate = duration<double, std::ratio<1, 60>>;
+         auto r = target_rate(rate);
+         if (r.count() < 1.0) {
+            std::this_thread::sleep_for(target_rate(1.0 - r.count()));
+         }
+      }
+
+      duration<double> rate;
+      time_point<high_resolution_clock> prev;
+   };
+
+   struct mem {
+      void remember(double r, double m) {
+         rads.push_back(r);
+         muls.push_back(m);
+      }
+
+      std::vector<double> rads;
+      std::vector<double> muls;
+   };
+
+   auto trig = [](double r) {
+      return std::make_tuple(std::sin(r), std::cos(r));
+   };
+
+   ticker tick {};
+   auto t = [&tick]() {
+      return tick();
+   };
+
+   tick_to_rad to_rad;
+   auto r = [&to_rad](int i) {
+      return to_rad(i);
+   };
+
+   std::multiplies<double> mul;
+
+   mem memory;
+   std::function<void(double, double)> m = std::bind(&mem::remember, &memory, _1, _2);
+   std::function<void()> throttle = std::bind(&tick_to_rad::throttle, &to_rad);
+
+   callgraph::graph g;
+   g.connect(t);
+   g.connect<0>(t, r);
+   g.connect<0>(r, trig);
+   g.connect<0, 0>(trig, mul);
+   g.connect<1, 1>(trig, mul);
+   g.connect<0>(r, m);
+   g.connect<1>(mul, m);
+   g.connect(m, throttle);
+
+   callgraph::graph_runner runner(g);
+   auto start = high_resolution_clock::now();
+   while(high_resolution_clock::now() - start < 3s) {
+      runner.execute().wait();
+   }
+
+   assert(memory.rads.size() > 0);
+   assert(memory.muls.size() == memory.rads.size());
+   assert(memory.muls.size() == tick.i);
+
+   for (size_t i = 0; i < tick.i; i++) {
+      double rad = memory.rads[i];
+      double prod = memory.muls[i];
+      double comp = std::sin(2 * rad) * 0.5;
+      double diff = std::abs(comp - prod);
+
+      assert(diff < 1.0e-10);
+   }
 }

@@ -16,7 +16,7 @@ namespace callgraph {
 
         struct graph_worker {
             graph_worker(graph_runner& runner)
-                : runner_(runner),
+                : runner_(&runner),
                   thread_(std::bind(&graph_worker::work, this))
                 {
                 }
@@ -35,42 +35,42 @@ namespace callgraph {
             const graph_node* get_task() {
                 const graph_node* task(nullptr);
                 {
-                    std::unique_lock<std::mutex> lk(runner_.queue_mutex_);
+                    std::unique_lock<std::mutex> lk(runner_->queue_mutex_);
 
-                    runner_.queue_avail_.wait(lk, [this] {
-                            return !runner_.on_ || !runner_.queue_.empty();
+                    runner_->queue_avail_.wait(lk, [this] {
+                            return !runner_->on_ || !runner_->queue_.empty();
                         });
 
-                    if (runner_.on_ && !runner_.queue_.empty()) {
-                        task = runner_.queue_.front();
-                        runner_.queue_.pop();
+                    if (runner_->on_ && !runner_->queue_.empty()) {
+                        task = runner_->queue_.front();
+                        runner_->queue_.pop();
                     }
                 }
                 return task;
             }
             void run_task(const graph_node* task)  {
-                if (task->run(runner_) && task->children_.size() == 0) {
+                if (task->run(*runner_) && task->children_.size() == 0) {
                     // Mark a leaf as done.
-                    std::unique_lock<std::mutex> lk(runner_.done_mutex_);
-                    runner_.leaves_--;
-                    if (runner_.leaves_ == 0) {
+                    std::unique_lock<std::mutex> lk(runner_->done_mutex_);
+                    runner_->leaves_--;
+                    if (runner_->leaves_ == 0) {
                         // Finished.
-                        runner_.done_.set_value();
+                        runner_->done_.set_value();
                     }
                 }
             }
             void handle_exception() {
-                runner_.clear_queue();
+                runner_->clear_queue();
                 {
-                    std::unique_lock<std::mutex> lk(runner_.done_mutex_);
+                    std::unique_lock<std::mutex> lk(runner_->done_mutex_);
                     try {
-                        runner_.done_.set_exception(std::current_exception());
+                        runner_->done_.set_exception(std::current_exception());
                     }
                     catch(...) {}
                 }
             }
             void work() {
-                while (runner_.on_) {
+                while (runner_->on_) {
                     try {
                         const graph_node* task(get_task());
                         if (!task) {
@@ -84,7 +84,7 @@ namespace callgraph {
                 }
             }
 
-            graph_runner& runner_;
+            graph_runner* runner_;
             std::thread thread_;
         };
 

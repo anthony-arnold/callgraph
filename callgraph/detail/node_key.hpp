@@ -9,14 +9,14 @@
 #ifndef NO_DOC
 namespace callgraph {
     namespace detail {
-        using node_key = void*;
+        using node_key = const void*;
 
         template <typename>
         struct to_node_key_impl
         {
             template <typename T>
             static node_key apply(T&& t) {
-                return &t;
+               return reinterpret_cast<node_key>(&t);
             }
         };
 
@@ -24,7 +24,7 @@ namespace callgraph {
         struct to_node_key_impl<T*>
         {
             static node_key apply(T* t) {
-                return *reinterpret_cast<node_key*>(&t);
+                return reinterpret_cast<node_key>(t);
             }
         };
 

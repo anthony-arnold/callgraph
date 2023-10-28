@@ -148,6 +148,7 @@ namespace callgraph { namespace detail {
         private:
             type fn_;
         };
+
     }
 }
 #endif
